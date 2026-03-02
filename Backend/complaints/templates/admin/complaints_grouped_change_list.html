@@ -1,0 +1,39 @@
+{% extends "admin/change_list.html" %}
+
+{% block content_title %}
+    <h1> Complaints Grouped By Location & Issue Type </h1>
+{% endblock %}
+
+{% block result_list %}
+    <div class="results">
+        <h2>Aggregated Groupings (Total exact lat/lng and issue type)</h2>
+        <table id="result_list">
+            <thead>
+                <tr>
+                    <th>Issue Type</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Total Complaints</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in summary.groups %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ group.issue_type }}</td>
+                    <td>{{ group.latitude|floatformat:4 }}</td>
+                    <td>{{ group.longitude|floatformat:4 }}</td>
+                    <td><strong>{{ group.total }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No complaints found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <br/>
+    <h2>Raw Data List Below</h2>
+    {{ block.super }}
+{% endblock %}

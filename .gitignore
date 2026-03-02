@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+myenv/
+
+# Django
+db.sqlite3
+media/
+
+# AI
+*.h5
+*.pt
+*.onnx
+
+# Flutter
+build/
+.dart_tool/
