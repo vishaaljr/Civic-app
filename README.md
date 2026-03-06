@@ -3,7 +3,7 @@
 ## 1. Intelligent Issue Reporting with Auto Geolocation
 Our app simplifies the complaint submission process with an advanced water tank reporting feature that captures precise GPS coordinates automatically. Users can easily specify the nature of their complaint, ensuring that every issue is accurately categorized. This level of granularity empowers local authorities to respond swiftly and effectively.
 
-![Feature 1](WhatsApp Image 2026-02-28 at 12.12.19 PM (1))
+![Feature 1](/WhatsApp Image 2026-02-28 at 12.12.19 PM (1))
 
 ## 2. Multi-Step Smart Capture Workflow
 Experience a seamless 4-step stepper flow that guides users through the complaint submission process. Our innovative multi-step workflow incorporates a camera capture feature, enabling users to document issues visually. Each photo taken is automatically geo-tagged, making it easier for response teams to locate the problem areas without ambiguity.
