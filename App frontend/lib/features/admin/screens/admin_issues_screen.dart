@@ -1,10 +1,10 @@
 // lib/features/admin/screens/admin_issues_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/issue_card.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../issues/models/issue.dart';
 import '../../issues/models/issue_status.dart';
 import '../../issues/models/category.dart';
 import '../../issues/providers/issue_providers.dart';
@@ -17,7 +17,6 @@ class AdminIssuesScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminIssuesScreenState extends ConsumerState<AdminIssuesScreen> {
-  bool _loading = true;
   final _searchCtrl = TextEditingController();
   String _query = '';
   IssueStatus? _filterStatus;
@@ -27,9 +26,6 @@ class _AdminIssuesScreenState extends ConsumerState<AdminIssuesScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(AppConstants.mockLoadDelay, () {
-      if (mounted) setState(() => _loading = false);
-    });
     _searchCtrl.addListener(() {
       setState(() => _query = _searchCtrl.text);
     });
@@ -44,11 +40,33 @@ class _AdminIssuesScreenState extends ConsumerState<AdminIssuesScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final repo = ref.watch(issueRepositoryProvider);
+    final issuesAsync = ref.watch(allIssuesProvider);
 
-    final issues = _query.trim().isNotEmpty
-        ? repo.searchIssues(_query, filters: IssueFilters(status: _filterStatus, categoryId: _filterCategoryId))
-        : repo.fetchAllIssues(filters: IssueFilters(status: _filterStatus, categoryId: _filterCategoryId), sort: _sortOrder);
+    // Apply screen-level search + filters on top of remote list.
+    final q = _query.toLowerCase().trim();
+    List<Issue> applyView(List<Issue> issues) {
+      var view = issues;
+      if (_filterStatus != null) {
+        view = view.where((i) => i.status == _filterStatus).toList();
+      }
+      if (_filterCategoryId != null && _filterCategoryId!.isNotEmpty) {
+        view = view.where((i) => i.category.id == _filterCategoryId).toList();
+      }
+      if (q.isNotEmpty) {
+        view = view.where((i) {
+          return i.title.toLowerCase().contains(q) ||
+              i.description.toLowerCase().contains(q) ||
+              i.location.areaName.toLowerCase().contains(q) ||
+              i.category.name.toLowerCase().contains(q);
+        }).toList();
+      }
+      if (_sortOrder == SortOrder.oldest) {
+        view.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      } else {
+        view.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
+      return view;
+    }
 
     return Column(
       children: [
@@ -132,7 +150,14 @@ class _AdminIssuesScreenState extends ConsumerState<AdminIssuesScreen> {
           child: Row(
             children: [
               Text(
-                '${issues.length} issue${issues.length == 1 ? '' : 's'}',
+                issuesAsync.when(
+                  data: (issues) {
+                    final view = applyView(issues);
+                    return '${view.length} issue${view.length == 1 ? '' : 's'}';
+                  },
+                  loading: () => 'Loading…',
+                  error: (_, __) => '—',
+                ),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const Spacer(),
@@ -152,32 +177,43 @@ class _AdminIssuesScreenState extends ConsumerState<AdminIssuesScreen> {
 
         // List
         Expanded(
-          child: _loading
-              ? ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: 5,
-                  itemBuilder: (_, __) => const IssueCardSkeleton(),
-                )
-              : issues.isEmpty
-                  ? EmptyState(
-                      icon: Icons.search_off_rounded,
-                      title: 'No issues found',
-                      subtitle: 'Try adjusting your search or filters.',
-                      actionLabel: 'Clear all',
-                      onAction: () {
-                        _searchCtrl.clear();
-                        setState(() {
-                          _query = '';
-                          _filterStatus = null;
-                          _filterCategoryId = null;
-                        });
-                      },
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: issues.length,
-                      itemBuilder: (_, i) => IssueCard(issue: issues[i], isAdmin: true),
-                    ),
+          child: issuesAsync.when(
+            loading: () => ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 5,
+              itemBuilder: (_, __) => const IssueCardSkeleton(),
+            ),
+            error: (e, st) => const EmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'Couldn’t load complaints',
+              subtitle: 'Please check your connection and try again.',
+            ),
+            data: (issues) {
+              final view = applyView(issues);
+              if (view.isEmpty) {
+                return EmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'No issues found',
+                  subtitle: 'Try adjusting your search or filters.',
+                  actionLabel: 'Clear all',
+                  onAction: () {
+                    _searchCtrl.clear();
+                    setState(() {
+                      _query = '';
+                      _filterStatus = null;
+                      _filterCategoryId = null;
+                    });
+                  },
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: view.length,
+                itemBuilder: (_, i) => IssueCard(issue: view[i], isAdmin: true),
+              );
+            },
+          ),
         ),
       ],
     );

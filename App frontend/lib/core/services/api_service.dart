@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 /// Base URL for the Django backend.
 /// - For web / desktop: use localhost.
 /// - For Android emulator: change to 10.0.2.2.
-const String kBaseUrl = 'http://172.16.20.116:8000/api';
+const String kBaseUrl = 'http://172.16.46.171:8000/api';
 
 const _storage = FlutterSecureStorage();
 

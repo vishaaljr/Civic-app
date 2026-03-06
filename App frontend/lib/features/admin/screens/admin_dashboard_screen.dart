@@ -16,35 +16,46 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(AppConstants.mockLoadDelay, () {
-      if (mounted) setState(() => _loading = false);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final repo = ref.watch(issueRepositoryProvider);
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 700;
 
+    final issuesAsync = ref.watch(allIssuesProvider);
+
+    final issues = issuesAsync.value ?? const [];
+
+    final totalCount = issues.length;
+    final openCount = issues.where((i) => i.status == IssueStatus.open).length;
+    final inProgressCount =
+        issues.where((i) => i.status == IssueStatus.inProgress).length;
+    final resolvedCount =
+        issues.where((i) => i.status == IssueStatus.resolved).length;
+
     final kpiData = [
-      _KpiData('Total Issues', repo.totalCount, Icons.assignment_rounded, const Color(0xFF1565C0)),
-      _KpiData('Open', repo.openCount, Icons.radio_button_checked_rounded, const Color(0xFFE53935)),
-      _KpiData('In Progress', repo.inProgressCount, Icons.autorenew_rounded, const Color(0xFFF57C00)),
-      _KpiData('Resolved', repo.resolvedCount, Icons.check_circle_rounded, const Color(0xFF2E7D32)),
+      _KpiData('Total Issues', totalCount, Icons.assignment_rounded,
+          const Color(0xFF1565C0)),
+      _KpiData('Open', openCount, Icons.radio_button_checked_rounded,
+          const Color(0xFFE53935)),
+      _KpiData('In Progress', inProgressCount, Icons.autorenew_rounded,
+          const Color(0xFFF57C00)),
+      _KpiData('Resolved', resolvedCount, Icons.check_circle_rounded,
+          const Color(0xFF2E7D32)),
     ];
 
-    final wardCounts = repo.getIssueCountByWard();
+    final wardCounts = <String, int>{};
+    for (final i in issues) {
+      final w = i.location.wardNumber;
+      wardCounts[w] = (wardCounts[w] ?? 0) + 1;
+    }
     final sortedWards = wardCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    final urgentIssues = repo.getUrgentIssues().take(isSmallScreen ? 2 : 3).toList();
+    final urgentIssues = issues
+        .where((i) => i.isUrgent && i.status == IssueStatus.open)
+        .take(isSmallScreen ? 2 : 3)
+        .toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -54,7 +65,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           // KPI Cards
           Text('Overview', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
-          if (_loading)
+          if (issuesAsync.isLoading)
             SizedBox(
               height: isSmallScreen ? 80 : 95,
               child: ListView.separated(
@@ -116,7 +127,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           const SizedBox(height: 12),
           ...sortedWards.take(isSmallScreen ? 3 : 5).map((entry) {
             // Show ward number directly (no MockLocations)
-            final pct = repo.totalCount > 0 ? entry.value / repo.totalCount : 0.0;
+            final pct = totalCount > 0 ? entry.value / totalCount : 0.0;
             return _WardTile(
               area: 'Ward ${entry.key}',
               ward: entry.key,
